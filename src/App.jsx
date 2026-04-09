@@ -4,7 +4,7 @@ import { questionsData, allTopics, allCompanies } from './data/questions';
 import TopicAccordion from './components/TopicAccordion';
 import { syncSolvedQuestions, getSolvedQuestions } from './firebase';
 
-const API_BASE = '/api';
+const API_BASE = 'https://polite-halva-dc4f46.netlify.app/.netlify/functions/leetcode?path=';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('database'); // dashboard | database | assessment | alltopics
