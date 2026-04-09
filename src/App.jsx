@@ -7,6 +7,7 @@ import { syncSolvedQuestions, getSolvedQuestions } from './firebase';
 export default function App() {
   const [activeTab, setActiveTab] = useState('database'); // dashboard | database | assessment | alltopics
   const [username, setUsername] = useState(() => localStorage.getItem('lc_username') || '');
+  const [isVerified, setIsVerified] = useState(() => localStorage.getItem('lc_verified') === 'true');
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -74,31 +75,50 @@ export default function App() {
   }, [assessmentActive, timeLeft]);
 
   const fetchLeetCodeStats = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     if (!username) return;
     setLoading(true);
     try {
-      localStorage.setItem('lc_username', username);
-      
-      // Sync cloud data
-      const cloudData = await getSolvedQuestions(username);
-      if (cloudData && Object.keys(cloudData).length > 0) {
-        setSolvedQuestions(cloudData);
-      }
-
-      const res = await fetch(`https://leetcode-stats-api.herokuapp.com/${username}`);
+      // Use Alfa API for verification and solved counts
+      const res = await fetch(`https://alfa-leetcode-api.onrender.com/${username}/solved`);
       const data = await res.json();
-      if (data.status === 'success') {
+      
+      if (data && (data.solvedProblem || data.status === 'success')) {
+        localStorage.setItem('lc_username', username);
+        localStorage.setItem('lc_verified', 'true');
+        setIsVerified(true);
         setStats(data);
+
+        // Sync cloud data
+        const cloudData = await getSolvedQuestions(username);
+        if (cloudData && Object.keys(cloudData).length > 0) {
+          setSolvedQuestions(cloudData);
+        }
       } else {
-        alert("User not found via Leetcode API.");
+        alert("Verification failed: User not found on LeetCode.");
       }
     } catch (err) {
       console.error(err);
-      alert("Error fetching stats.");
+      // Fallback for 429/503: If the API is busy but the user already exists in local/cloud, let them in
+      const existing = await getSolvedQuestions(username);
+      if (existing && Object.keys(existing).length > 0) {
+        setIsVerified(true);
+        setSolvedQuestions(existing);
+      } else {
+        alert("LeetCode API is busy/down. Please try again in 1 minute.");
+      }
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('lc_username');
+    localStorage.removeItem('lc_verified');
+    setUsername('');
+    setIsVerified(false);
+    setStats(null);
+    setSolvedQuestions({});
   };
 
   const toggleSolved = (id) => {
@@ -155,22 +175,64 @@ export default function App() {
   });
 
   return (
-    <div className="container" style={{ maxWidth: '1300px', margin: '0 auto', padding: '2rem' }}>
+    <div className="app-container" style={{ minHeight: '100vh', background: 'var(--bg-primary)', color: 'var(--text-primary)', paddingBottom: '4rem' }}>
       
-      {/* HEADER & NAV */}
-      <header style={{ display: 'flex', flexDirection: 'column', gap: '2rem', marginBottom: '3rem' }}>
+      {!isVerified ? (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'var(--bg-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
+          <div className="glass" style={{ maxWidth: '500px', width: '100%', padding: '3rem', textAlign: 'center', borderRadius: '32px', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <div style={{ background: 'var(--accent-primary)', width: '80px', height: '80px', borderRadius: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 2rem' }}>
+              <PlaySquare size={40} color="black" />
+            </div>
+            <h1 style={{ fontSize: '2.5rem', marginBottom: '1rem', fontWeight: '800' }}>Welcome</h1>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: '2.5rem', fontSize: '1.1rem' }}>Enter your LeetCode username to unlock your progress tracker and start syncing your database.</p>
+            
+            <form onSubmit={fetchLeetCodeStats} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div style={{ position: 'relative' }}>
+                <Search size={20} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }} />
+                <input 
+                  type="text" 
+                  placeholder="LeetCode Username" 
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  style={{ width: '100%', padding: '1.2rem 1.2rem 1.2rem 3rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', color: 'white', fontSize: '1rem', outline: 'none' }}
+                />
+              </div>
+              <button 
+                type="submit" 
+                disabled={loading}
+                style={{ padding: '1.2rem', background: 'var(--text-primary)', color: 'black', border: 'none', borderRadius: '16px', fontWeight: 'bold', fontSize: '1.1rem', cursor: 'pointer', transition: 'all 0.2s', opacity: loading ? 0.7 : 1 }}
+              >
+                {loading ? 'Verifying...' : 'Verify & Enter'}
+              </button>
+            </form>
+            
+            <p style={{ marginTop: '2rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+              Only valid LeetCode accounts can access the database.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div style={{ maxWidth: '1300px', margin: '0 auto', padding: '2rem' }}>
+
+      {/* Nav Header */}
+      <header style={{ display: 'flex', flexDirection: 'column', gap: '2rem', marginBottom: '3rem', padding: '0 2rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <h1 className="title-gradient" style={{ fontSize: '2.8rem', marginBottom: '0.2rem' }}>lc.tracker</h1>
             <p style={{ color: 'var(--text-secondary)' }}>Master your Code Revision</p>
           </div>
+          
           <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
-            {isSyncing && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--success)', fontSize: '0.85rem' }}>
-                <Activity size={16} className="pulse" />
-                Cloud Syncing...
+            {username && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Activity size={16} color="var(--success)" />
+                  <span>{username}</span>
+                </div>
+                <button onClick={handleLogout} style={{ background: 'rgba(255,255,255,0.05)', border: 'none', padding: '6px 12px', borderRadius: '8px', color: 'var(--text-secondary)', fontSize: '0.8rem', cursor: 'pointer' }}>Switch</button>
               </div>
             )}
+            
             <div style={{ display: 'flex', gap: '1rem', background: 'rgba(255,255,255,0.05)', padding: '0.5rem', borderRadius: '12px' }}>
               {['dashboard', 'database', 'assessment', 'alltopics'].map(tab => (
                 <button
@@ -430,6 +492,8 @@ export default function App() {
           )}
         </>
       )}
+      </div>
+    )}
     </div>
   );
 }

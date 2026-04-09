@@ -1,82 +1,68 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
+import { ChevronDown, ChevronRight, CheckCircle, Circle, Flame } from 'lucide-react';
 import { questionsData, allTopics } from '../data/questions';
-import { CheckCircle, Circle, Flame } from 'lucide-react';
 
-const TopicAccordion = ({ solvedQuestions = {}, onToggle }) => {
-  const [openTopic, setOpenTopic] = useState(null);
+export default function TopicAccordion({ solvedQuestions = {}, onToggle }) {
+  const [expandedTopic, setExpandedTopic] = useState('Arrays');
 
-  const topicsMap = useMemo(() => {
-    const map = {};
-    allTopics.forEach(topic => {
-      map[topic] = questionsData.filter(q => q.topics.includes(topic));
-    });
-    return map;
-  }, []);
-
-  const toggle = (topic) => {
-    setOpenTopic(prev => (prev === topic ? null : topic));
+  const getDifficultyColor = (diff) => {
+    switch (diff) {
+      case 'Easy': return 'var(--success)';
+      case 'Medium': return 'var(--warning)';
+      case 'Hard': return 'var(--danger)';
+      default: return 'var(--text-secondary)';
+    }
   };
 
   return (
-    <div className="glass" style={{ padding: '2rem', borderRadius: '16px', maxWidth: '800px', margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-        <h2 style={{ fontSize: '2rem', margin: 0 }}>All Topics</h2>
-        <div style={{ fontSize: '0.9rem', opacity: 0.7 }}>
-          Synced with <b>{Object.keys(solvedQuestions).length}</b> questions
-        </div>
-      </div>
-      {Object.entries(topicsMap).map(([topic, qs]) => (
-        <div key={topic} style={{ marginBottom: '1rem' }}>
-          <button
-            onClick={() => toggle(topic)}
-            style={{
-              width: '100%',
-              textAlign: 'left',
-              padding: '1rem',
-              background: 'rgba(255,255,255,0.05)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: '12px',
-              color: 'var(--text-primary)',
-              fontWeight: '600',
-              cursor: 'pointer',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              transition: 'all 0.2s',
-            }}
-          >
-            <span>{topic} <span style={{ opacity: 0.5, fontWeight: 'normal', marginLeft: '0.5rem' }}>({qs.length})</span></span>
-            <span style={{ fontSize: '1.2rem' }}>{openTopic === topic ? '▴' : '▾'}</span>
-          </button>
-          {openTopic === topic && (
-            <ul style={{ listStyle: 'none', padding: '0.5rem 1rem', marginTop: '0.5rem', background: 'rgba(0,0,0,0.2)', borderRadius: '12px' }}>
-              {qs.map(q => {
-                 const isSolved = solvedQuestions[q.id];
-                 const getDiffColor = (d) => d === 'Easy' ? 'var(--success)' : d === 'Medium' ? 'var(--warning)' : 'var(--danger)';
-                 return (
-                  <li key={q.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.8rem 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      {allTopics.map(topic => {
+        const topicQs = questionsData.filter(q => q.topics.includes(topic));
+        const solvedCount = topicQs.filter(q => solvedQuestions[q.id]).length;
+        const isExpanded = expandedTopic === topic;
+
+        return (
+          <div key={topic} className="glass" style={{ borderRadius: '16px', overflow: 'hidden' }}>
+            <div 
+              onClick={() => setExpandedTopic(isExpanded ? null : topic)}
+              style={{ padding: '1.2rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', background: isExpanded ? 'rgba(255,255,255,0.03)' : 'transparent' }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <div style={{ color: 'var(--text-secondary)' }}>
+                  {isExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
+                </div>
+                <h3 style={{ fontSize: '1.1rem' }}>{topic}</h3>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', background: 'rgba(255,255,255,0.05)', padding: '0.2rem 0.6rem', borderRadius: '4px' }}>{topicQs.length} Questions</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <span style={{ color: solvedCount === topicQs.length && topicQs.length > 0 ? 'var(--success)' : 'var(--text-secondary)', fontWeight: 'bold' }}>{solvedCount}/{topicQs.length} Solved</span>
+              </div>
+            </div>
+
+            {isExpanded && (
+              <div style={{ padding: '0 1.5rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                {topicQs.map(q => (
+                  <div key={q.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.8rem 1rem', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.02)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                      <button 
-                        onClick={() => onToggle(q.id)}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: isSolved ? 'var(--success)' : 'rgba(255,255,255,0.3)' }}
-                      >
-                        {isSolved ? <CheckCircle size={20} /> : <Circle size={20} />}
-                      </button>
-                      <span style={{ color: getDiffColor(q.difficulty), fontSize: '0.75rem', minWidth: '55px', fontWeight: 'bold' }}>{q.difficulty}</span>
-                      <a href={`https://leetcode.com/problems/${q.title.toLowerCase().replace(/ /g, '-')}`} target="_blank" rel="noreferrer" style={{ color: isSolved ? 'var(--text-secondary)' : 'white', textDecoration: isSolved ? 'line-through' : 'none', fontSize: '1rem', transition: 'all 0.2s' }}>
-                        {q.id}. {q.title}
-                      </a>
+                      <div onClick={() => onToggle(q.id)} style={{ cursor: 'pointer', display: 'flex' }}>
+                        {solvedQuestions[q.id] ? <CheckCircle size={18} color="var(--success)" /> : <Circle size={18} color="var(--text-secondary)" />}
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                        <a href={`https://leetcode.com/problems/${q.title.toLowerCase().replace(/ /g, '-')}`} target="_blank" rel="noreferrer" style={{ color: solvedQuestions[q.id] ? 'var(--text-secondary)' : 'white', textDecoration: solvedQuestions[q.id] ? 'line-through' : 'none', fontSize: '0.95rem' }}>{q.id}. {q.title}</a>
+                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                          <span style={{ color: getDifficultyColor(q.difficulty), fontSize: '0.75rem' }}>{q.difficulty}</span>
+                          {q.important && <Flame size={12} color="#f59e0b" />}
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{q.companies.slice(0, 2).join(', ')}</span>
+                        </div>
+                      </div>
                     </div>
-                    {q.important && <Flame size={18} color="#f59e0b" style={{ filter: 'drop-shadow(0 0 4px rgba(245, 158, 11, 0.4))' }} />}
-                  </li>
-                 );
-              })}
-            </ul>
-          )}
-        </div>
-      ))}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
-};
-
-export default TopicAccordion;
+}
