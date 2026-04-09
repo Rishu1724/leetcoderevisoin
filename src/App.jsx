@@ -85,11 +85,21 @@ export default function App() {
     if (!username) return;
     setLoading(true);
     try {
-      // Use Alfa API base endpoint for full stats (totalSolved, totalQuestions, difficulty counts)
-      const res = await fetch(`https://alfa-leetcode-api.onrender.com/${username}`);
+      // Use Alfa API userProfile endpoint for full stats
+      const res = await fetch(`https://alfa-leetcode-api.onrender.com/userProfile/${username}`);
+      
+      if (res.status === 429) {
+        throw new Error("RATE_LIMIT");
+      }
+
+      if (!res.ok) {
+        throw new Error("FETCH_ERROR");
+      }
+
       const data = await res.json();
       
-      if (data && (data.totalSolved || data.status === 'success')) {
+      // If the API returns an "errors" array, or doesn't have valid solved data, it's invalid
+      if (data && !data.errors && data.totalSolved !== undefined) {
         localStorage.setItem('lc_username', username);
         localStorage.setItem('lc_verified', 'true');
         setIsVerified(true);
@@ -105,13 +115,20 @@ export default function App() {
       }
     } catch (err) {
       console.error(err);
-      // Fallback for 429/503: If the API is busy but the user already exists in local/cloud, let them in
+      
+      // Fallback for returning users only
       const existing = await getSolvedQuestions(username);
       if (existing && Object.keys(existing).length > 0) {
         setIsVerified(true);
         setSolvedQuestions(existing);
+        localStorage.setItem('lc_username', username);
+        localStorage.setItem('lc_verified', 'true');
       } else {
-        alert("LeetCode API is busy/down. Please try again in 1 minute.");
+        if (err.message === "RATE_LIMIT") {
+          alert("LeetCode API is busy (Rate Limit). Please try again in 1 minute.");
+        } else {
+          alert("Unable to verify user. Please check your spelling or try again later.");
+        }
       }
     } finally {
       setLoading(false);
