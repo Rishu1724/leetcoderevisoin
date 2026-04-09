@@ -4,6 +4,8 @@ import { questionsData, allTopics, allCompanies } from './data/questions';
 import TopicAccordion from './components/TopicAccordion';
 import { syncSolvedQuestions, getSolvedQuestions } from './firebase';
 
+const API_BASE = '/api';
+
 export default function App() {
   const [activeTab, setActiveTab] = useState('database'); // dashboard | database | assessment | alltopics
   const [username, setUsername] = useState(() => localStorage.getItem('lc_username') || '');
@@ -80,23 +82,24 @@ export default function App() {
     return () => clearInterval(timer);
   }, [assessmentActive, timeLeft]);
 
+  const fetchWithFallback = async (endpoint) => {
+    try {
+      const res = await fetch(`${API_BASE}${endpoint}`);
+      if (res.status === 429) throw new Error("RATE_LIMIT");
+      if (!res.ok) throw new Error("API_ERROR");
+      return await res.json();
+    } catch (err) {
+      throw err;
+    }
+  };
+
   const fetchLeetCodeStats = async (e) => {
     if (e) e.preventDefault();
     if (!username) return;
     setLoading(true);
     try {
-      // Use Alfa API userProfile endpoint for full stats
-      const res = await fetch(`https://alfa-leetcode-api.onrender.com/userProfile/${username}`);
-      
-      if (res.status === 429) {
-        throw new Error("RATE_LIMIT");
-      }
-
-      if (!res.ok) {
-        throw new Error("FETCH_ERROR");
-      }
-
-      const data = await res.json();
+      // Use fallback fetcher for better reliability
+      const data = await fetchWithFallback(`/userProfile/${username}`);
       
       // If the API returns an "errors" array, or doesn't have valid solved data, it's invalid
       if (data && !data.errors && data.totalSolved !== undefined) {
@@ -130,6 +133,45 @@ export default function App() {
           alert("Unable to verify user. Please check your spelling or try again later.");
         }
       }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchSolvedHistory = async () => {
+    if (!username || !isVerified) return;
+    setLoading(true);
+    try {
+      // 1. Get total solved count needed for limit
+      const profile = await fetchWithFallback(`/userProfile/${username}`);
+      if (!profile || profile.totalSolved === undefined) throw new Error("Could not fetch profile");
+
+      // 2. Fetch full AC submission history
+      const historyRes = await fetchWithFallback(`/${username}/acSubmission?limit=${profile.totalSolved + 50}`);
+      if (!historyRes || !historyRes.submission) throw new Error("Could not fetch submission history");
+
+      // 3. Map solved titles to IDs in our database
+      const acTitles = new Set(historyRes.submission.map(s => s.title));
+      const newlySolved = { ...solvedQuestions };
+      let changed = false;
+
+      questionsData.forEach(q => {
+        if (acTitles.has(q.title) && !newlySolved[q.id]) {
+          newlySolved[q.id] = true;
+          changed = true;
+        }
+      });
+
+      if (changed) {
+        setSolvedQuestions(newlySolved);
+        alert(`Success! Automatically marked ${Object.keys(newlySolved).length - Object.keys(solvedQuestions).length} new questions as solved.`);
+      } else {
+        alert("Your tracker is already up to date with your LeetCode history!");
+      }
+
+    } catch (err) {
+      console.error(err);
+      alert("Auto-Sync failed. All servers are currently busy. Please try again in a few minutes.");
     } finally {
       setLoading(false);
     }
@@ -390,6 +432,13 @@ export default function App() {
                       style={{ flex: 1, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border)', color: 'white', padding: '0.8rem 1rem', borderRadius: '8px', outline: 'none' }} />
                     <button type="submit" disabled={loading} style={{ background: 'var(--accent-primary)', border: 'none', color: 'white', padding: '0.8rem 1.5rem', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}>{loading ? 'Fetching...' : 'Sync LeetCode'}</button>
                   </form>
+                  <button 
+                    onClick={fetchSolvedHistory} 
+                    disabled={loading}
+                    style={{ marginTop: '1rem', width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'white', padding: '0.6rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+                  >
+                    <Activity size={14} color="var(--accent-primary)"/> Auto-Mark Solved Questions (From LeetCode History)
+                  </button>
                 </div>
                 {stats && (
                   <div style={{ flex: 1, minWidth: '300px', borderLeft: '1px solid var(--border)', paddingLeft: '2rem' }}>
