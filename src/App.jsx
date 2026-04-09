@@ -15,23 +15,28 @@ export default function App() {
 
   useEffect(() => {
     const savedUser = localStorage.getItem('lc_username');
+    const localSolved = localStorage.getItem('lc_solved');
+    
+    if (localSolved) {
+      setSolvedQuestions(JSON.parse(localSolved));
+    }
+
     if (savedUser) {
       setUsername(savedUser);
       getSolvedQuestions(savedUser).then(data => {
-        setSolvedQuestions(data || {});
+        if (data && Object.keys(data).length > 0) {
+          setSolvedQuestions(data);
+          localStorage.setItem('lc_solved', JSON.stringify(data));
+        }
       });
-    } else {
-      const saved = localStorage.getItem('lc_solved');
-      if (saved) setSolvedQuestions(JSON.parse(saved));
     }
   }, []);
 
   useEffect(() => {
     if (Object.keys(solvedQuestions).length > 0) {
+      localStorage.setItem('lc_solved', JSON.stringify(solvedQuestions));
       if (username) {
         syncSolvedQuestions(username, solvedQuestions);
-      } else {
-        localStorage.setItem('lc_solved', JSON.stringify(solvedQuestions));
       }
     }
   }, [solvedQuestions, username]);
