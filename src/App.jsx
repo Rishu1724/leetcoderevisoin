@@ -41,6 +41,7 @@ export default function App() {
   const [selectedCompany, setSelectedCompany] = useState('All');
   const [selectedDifficulty, setSelectedDifficulty] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showAllTopics, setShowAllTopics] = useState(false);
 
   // Assessment State
   const [assessmentActive, setAssessmentActive] = useState(false);
@@ -292,7 +293,7 @@ export default function App() {
                     </div>
                   </div>
                 </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.8rem' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.8rem', position: 'relative', overflow: 'hidden', maxHeight: showAllTopics ? 'none' : '100px', transition: 'max-height 0.3s ease' }}>
                   <button onClick={() => setSelectedTopic('All')} style={{ padding: '6px 12px', border: 'none', borderRadius: '20px', cursor: 'pointer', fontSize: '0.85rem', background: selectedTopic === 'All' ? 'var(--text-primary)' : 'rgba(255,255,255,0.1)', color: selectedTopic === 'All' ? 'black' : 'var(--text-primary)', transition: 'all 0.2s' }}>All Topics</button>
                   {sortedTopics.map(topic => {
                     const count = questionsData.filter(q => q.topics.includes(topic)).length;
@@ -301,6 +302,14 @@ export default function App() {
                       <button key={topic} onClick={() => setSelectedTopic(topic)} style={{ padding: '6px 12px', border: 'none', borderRadius: '20px', cursor: 'pointer', fontSize: '0.85rem', background: isSel ? 'var(--text-primary)' : 'rgba(255,255,255,0.1)', color: isSel ? 'black' : 'var(--text-primary)', transition: 'all 0.2s' }}>{topic} <span style={{ opacity: isSel ? 0.8 : 0.5 }}>{count}</span></button>
                     );
                   })}
+                </div>
+                <div style={{ marginTop: '0.5rem' }}>
+                   <button 
+                    onClick={() => setShowAllTopics(!showAllTopics)} 
+                    style={{ background: 'transparent', border: 'none', color: 'var(--accent-secondary)', cursor: 'pointer', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                  >
+                    {showAllTopics ? 'Show Less' : `+ ${sortedTopics.length - 8} more topics`}
+                  </button>
                 </div>
               </div>
 

@@ -40,14 +40,20 @@ const TopicAccordion = () => {
           </button>
           {openTopic === topic && (
             <ul style={{ listStyle: 'none', padding: '0.5rem 1rem', marginTop: '0.5rem' }}>
-              {qs.map(q => (
-                <li key={q.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.3rem 0' }}>
-                  <a href={`https://leetcode.com/problems/${q.title.toLowerCase().replace(/ /g, '-')}`} target="_blank" rel="noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>
-                    {q.id}. {q.title}
-                  </a>
-                  {q.important && <Flame size={14} color="#f59e0b" />}
-                </li>
-              ))}
+              {qs.map(q => {
+                 const getDiffColor = (d) => d === 'Easy' ? 'var(--success)' : d === 'Medium' ? 'var(--warning)' : 'var(--danger)';
+                 return (
+                  <li key={q.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                      <span style={{ color: getDiffColor(q.difficulty), fontSize: '0.75rem', minWidth: '55px' }}>{q.difficulty}</span>
+                      <a href={`https://leetcode.com/problems/${q.title.toLowerCase().replace(/ /g, '-')}`} target="_blank" rel="noreferrer" style={{ color: 'white', textDecoration: 'none', fontSize: '0.95rem' }}>
+                        {q.id}. {q.title}
+                      </a>
+                    </div>
+                    {q.important && <Flame size={16} color="#f59e0b" />}
+                  </li>
+                 );
+              })}
             </ul>
           )}
         </div>
