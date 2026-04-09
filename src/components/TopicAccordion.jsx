@@ -2,8 +2,14 @@ import React, { useState } from 'react';
 import { ChevronDown, ChevronRight, CheckCircle, Circle, Flame } from 'lucide-react';
 import { questionsData, allTopics } from '../data/questions';
 
-export default function TopicAccordion({ solvedQuestions = {}, onToggle }) {
-  const [expandedTopic, setExpandedTopic] = useState('Arrays');
+export default function TopicAccordion({ solvedQuestions = {}, onToggle, initialExpandedTopic = null }) {
+  const [expandedTopic, setExpandedTopic] = useState(initialExpandedTopic);
+
+  React.useEffect(() => {
+    if (initialExpandedTopic) {
+      setExpandedTopic(initialExpandedTopic);
+    }
+  }, [initialExpandedTopic]);
 
   const getDifficultyColor = (diff) => {
     switch (diff) {

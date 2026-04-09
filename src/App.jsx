@@ -14,6 +14,8 @@ export default function App() {
   // Manual Tracker State
   const [solvedQuestions, setSolvedQuestions] = useState({});
   const [isSyncing, setIsSyncing] = useState(false);
+  const [dailyFocus, setDailyFocus] = useState(() => JSON.parse(localStorage.getItem('lc_daily_focus') || '[]'));
+  const [expandedTopic, setExpandedTopic] = useState(null);
 
   useEffect(() => {
     const savedUser = localStorage.getItem('lc_username');
@@ -33,6 +35,10 @@ export default function App() {
       });
     }
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem('lc_daily_focus', JSON.stringify(dailyFocus));
+  }, [dailyFocus]);
 
   useEffect(() => {
     if (Object.keys(solvedQuestions).length > 0) {
@@ -79,11 +85,11 @@ export default function App() {
     if (!username) return;
     setLoading(true);
     try {
-      // Use Alfa API for verification and solved counts
-      const res = await fetch(`https://alfa-leetcode-api.onrender.com/${username}/solved`);
+      // Use Alfa API base endpoint for full stats (totalSolved, totalQuestions, difficulty counts)
+      const res = await fetch(`https://alfa-leetcode-api.onrender.com/${username}`);
       const data = await res.json();
       
-      if (data && (data.solvedProblem || data.status === 'success')) {
+      if (data && (data.totalSolved || data.status === 'success')) {
         localStorage.setItem('lc_username', username);
         localStorage.setItem('lc_verified', 'true');
         setIsVerified(true);
@@ -126,6 +132,18 @@ export default function App() {
       ...prev,
       [id]: !prev[id]
     }));
+  };
+
+  const toggleFocus = (topic) => {
+    setDailyFocus(prev => 
+      prev.includes(topic) ? prev.filter(t => t !== topic) : [...prev, topic]
+    );
+  };
+
+  const jumpToTopic = (topic) => {
+    setExpandedTopic(topic);
+    setActiveTab('alltopics');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const startAssessment = () => {
@@ -300,6 +318,53 @@ export default function App() {
           {/* DASHBOARD TAB */}
           {activeTab === 'dashboard' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '3rem' }}>
+              
+              {/* TODAY'S REVISION PLAN */}
+              <section className="glass" style={{ padding: '2rem', borderRadius: '24px', border: '1px solid var(--accent-primary)', background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(0,0,0,0))' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+                  <div>
+                    <h2 style={{ fontSize: '1.8rem', display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+                      <Calendar size={28} color="var(--accent-primary)"/> Today's Revision Plan
+                    </h2>
+                    <p style={{ color: 'var(--text-secondary)' }}>Focus on these topics to master your weak areas.</p>
+                  </div>
+                  <div style={{ background: 'rgba(255,255,255,0.05)', padding: '0.5rem 1rem', borderRadius: '12px', fontSize: '0.9rem' }}>
+                    {dailyFocus.length} Topics Selected
+                  </div>
+                </div>
+
+                {dailyFocus.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '2rem', background: 'rgba(0,0,0,0.2)', borderRadius: '16px', border: '1px dashed var(--border)' }}>
+                    <p style={{ color: 'var(--text-secondary)' }}>No topics pinned for today. Add them below! 👇</p>
+                  </div>
+                ) : (
+                  <div style={{ display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
+                    {dailyFocus.map(topic => {
+                      const topicQs = questionsData.filter(q => q.topics.includes(topic));
+                      const solvedCount = topicQs.filter(q => solvedQuestions[q.id]).length;
+                      const progress = topicQs.length > 0 ? (solvedCount / topicQs.length) * 100 : 0;
+                      return (
+                        <div key={topic} className="glass" style={{ padding: '1.5rem', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', cursor: 'pointer' }} onClick={() => jumpToTopic(topic)}>
+                              <CheckCircle size={20} color={progress === 100 ? 'var(--success)' : 'var(--text-secondary)'} />
+                              <h3 style={{ fontSize: '1.1rem' }}>{topic}</h3>
+                            </div>
+                            <button onClick={() => toggleFocus(topic)} style={{ background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: '0.8rem' }}>Remove</button>
+                          </div>
+                          <div style={{ width: '100%', background: 'rgba(255,255,255,0.05)', height: '6px', borderRadius: '3px', overflow: 'hidden' }}>
+                            <div style={{ width: `${progress}%`, background: 'var(--accent-primary)', height: '100%', transition: 'width 0.4s ease' }}></div>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                            <span>{solvedCount} / {topicQs.length} Solved</span>
+                            <span>{Math.round(progress)}%</span>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </section>
               <section className="glass" style={{ padding: '2rem', borderRadius: '16px', display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
                 <div style={{ flex: 1, minWidth: '300px' }}>
                   <h2 style={{ marginBottom: '1rem' }}>Sync LeetCode Stats</h2>
@@ -330,13 +395,23 @@ export default function App() {
                   const solvedCount = topicQs.filter(q => solvedQuestions[q.id]).length;
                   const progress = topicQs.length > 0 ? (solvedCount / topicQs.length) * 100 : 0;
                   return (
-                    <div key={topic} className="glass" style={{ padding: '1.5rem', borderRadius: '16px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                        <h3 style={{ fontSize: '1.2rem', color: progress === 100 ? 'var(--success)' : 'white' }}>{topic}</h3>
-                        <span style={{ color: 'var(--text-secondary)' }}>{solvedCount}/{topicQs.length}</span>
+                    <div key={topic} className="glass" style={{ padding: '1.5rem', borderRadius: '16px', position: 'relative', transition: 'transform 0.2s', cursor: 'pointer' }} onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-5px)'} onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}>
+                      <div style={{ position: 'absolute', top: '1rem', right: '1rem', zInterval: 10 }}>
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); toggleFocus(topic); }} 
+                          style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: dailyFocus.includes(topic) ? 'var(--accent-primary)' : 'rgba(255,255,255,0.2)' }}
+                        >
+                          <Activity size={18} fill={dailyFocus.includes(topic) ? 'var(--accent-primary)' : 'none'} />
+                        </button>
                       </div>
-                      <div style={{ width: '100%', background: 'rgba(255,255,255,0.1)', height: '8px', borderRadius: '4px', overflow: 'hidden' }}>
-                        <div style={{ width: `${progress}%`, background: progress === 100 ? 'var(--success)' : 'var(--accent-secondary)', height: '100%', transition: 'width 0.3s ease' }}></div>
+                      <div onClick={() => jumpToTopic(topic)}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', paddingRight: '2rem' }}>
+                          <h3 style={{ fontSize: '1.2rem', color: progress === 100 ? 'var(--success)' : 'white' }}>{topic}</h3>
+                          <span style={{ color: 'var(--text-secondary)' }}>{solvedCount}/{topicQs.length}</span>
+                        </div>
+                        <div style={{ width: '100%', background: 'rgba(255,255,255,0.1)', height: '8px', borderRadius: '4px', overflow: 'hidden' }}>
+                          <div style={{ width: `${progress}%`, background: progress === 100 ? 'var(--success)' : 'var(--accent-secondary)', height: '100%', transition: 'width 0.3s ease' }}></div>
+                        </div>
                       </div>
                     </div>
                   );
@@ -459,6 +534,7 @@ export default function App() {
             <TopicAccordion 
               solvedQuestions={solvedQuestions} 
               onToggle={toggleSolved} 
+              initialExpandedTopic={expandedTopic}
             />
           )}
 
