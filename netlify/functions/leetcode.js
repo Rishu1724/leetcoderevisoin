@@ -7,15 +7,20 @@ const API_MIRRORS = [
 ];
 
 exports.handler = async (event, context) => {
-  const { path } = event.queryStringParameters || {};
+  const params = { ...event.queryStringParameters };
+  const path = params.path;
+  delete params.path;
   
   if (!path) {
     return { statusCode: 400, body: JSON.stringify({ error: "No path provided" }) };
   }
 
+  let queryStr = new URLSearchParams(params).toString();
+  if (queryStr) queryStr = '?' + queryStr;
+
   for (const mirror of API_MIRRORS) {
     try {
-      const url = `${mirror}${path}`;
+      const url = `${mirror}${path}${queryStr}`;
       const response = await fetch(url);
       
       if (response.status === 429) continue; // Rate limit, try next
