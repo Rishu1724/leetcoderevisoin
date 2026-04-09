@@ -12,6 +12,7 @@ export default function App() {
 
   // Manual Tracker State
   const [solvedQuestions, setSolvedQuestions] = useState({});
+  const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
     const savedUser = localStorage.getItem('lc_username');
@@ -36,7 +37,10 @@ export default function App() {
     if (Object.keys(solvedQuestions).length > 0) {
       localStorage.setItem('lc_solved', JSON.stringify(solvedQuestions));
       if (username) {
-        syncSolvedQuestions(username, solvedQuestions);
+        setIsSyncing(true);
+        syncSolvedQuestions(username, solvedQuestions).finally(() => {
+          setTimeout(() => setIsSyncing(false), 1000);
+        });
       }
     }
   }, [solvedQuestions, username]);
@@ -160,26 +164,34 @@ export default function App() {
             <h1 className="title-gradient" style={{ fontSize: '2.8rem', marginBottom: '0.2rem' }}>lc.tracker</h1>
             <p style={{ color: 'var(--text-secondary)' }}>Master your Code Revision</p>
           </div>
-          <div style={{ display: 'flex', gap: '1rem', background: 'rgba(255,255,255,0.05)', padding: '0.5rem', borderRadius: '12px' }}>
-            {['dashboard', 'database', 'assessment', 'alltopics'].map(tab => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                style={{
-                  background: activeTab === tab ? 'var(--accent-primary)' : 'transparent',
-                  color: activeTab === tab ? 'white' : 'var(--text-secondary)',
-                  border: 'none',
-                  padding: '0.6rem 1.2rem',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  fontWeight: '500',
-                  textTransform: 'capitalize',
-                  transition: 'all 0.2s'
-                }}
-              >
-                {tab === 'alltopics' ? 'All Topics' : tab}
-              </button>
-            ))}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
+            {isSyncing && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--success)', fontSize: '0.85rem' }}>
+                <Activity size={16} className="pulse" />
+                Cloud Syncing...
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: '1rem', background: 'rgba(255,255,255,0.05)', padding: '0.5rem', borderRadius: '12px' }}>
+              {['dashboard', 'database', 'assessment', 'alltopics'].map(tab => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  style={{
+                    background: activeTab === tab ? 'var(--accent-primary)' : 'transparent',
+                    color: activeTab === tab ? 'white' : 'var(--text-secondary)',
+                    border: 'none',
+                    padding: '0.6rem 1.2rem',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontWeight: '500',
+                    textTransform: 'capitalize',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  {tab === 'alltopics' ? 'All Topics' : tab}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </header>
@@ -250,7 +262,7 @@ export default function App() {
 
               {/* TOPIC MASTERY GRID */}
               <h2 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Award size={24} color="var(--accent-secondary)"/> Topic Mastery</h2>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1.5rem' }}>
+              <div style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', display: 'grid', gap: '1.5rem' }}>
                 {sortedTopics.map(topic => {
                   const topicQs = questionsData.filter(q => q.topics.includes(topic));
                   const solvedCount = topicQs.filter(q => solvedQuestions[q.id]).length;
