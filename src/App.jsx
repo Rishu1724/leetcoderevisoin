@@ -377,7 +377,10 @@ export default function App() {
 
           {/* ALL TOPICS TAB */}
           {activeTab === 'alltopics' && (
-            <TopicAccordion />
+            <TopicAccordion 
+              solvedQuestions={solvedQuestions} 
+              onToggle={toggleSolved} 
+            />
           )}
 
           {/* ASSESSMENT TAB */}
